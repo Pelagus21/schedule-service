@@ -1,13 +1,17 @@
 package ua.com.kalinichev.microservices.scheduleservice.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import ua.com.kalinichev.microservices.scheduleservice.apiCommunication.CoreWebClient;
 import ua.com.kalinichev.microservices.scheduleservice.dto.LessonDTO;
 import ua.com.kalinichev.microservices.scheduleservice.dto.SubjectDTO;
+import ua.com.kalinichev.microservices.scheduleservice.exceptions.BadRequestException;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -19,6 +23,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public Iterable<LessonDTO> getSpecialtyLessons(Long id) {
+        this.client.specialtyOrTeacherExistsById(id, true);
         SubjectDTO[] allSubjs = getAllSubjects();
         Set<Long> lessonIds = new HashSet<>();
         Arrays.stream(allSubjs)
@@ -29,6 +34,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public Iterable<LessonDTO> getTeacherLessons(Long id) {
+        this.client.specialtyOrTeacherExistsById(id, false);
         SubjectDTO[] allSubjs = getAllSubjects();
         Set<Long> lessonIds = new HashSet<>();
         Arrays.stream(allSubjs)
@@ -39,13 +45,21 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public Iterable<LessonDTO> getSubjectLessons(Long id) {
-        SubjectDTO subj = this.client.fetchSubjectById(id);
-        Long[] lessonIds = subj.getLessons();
-        return filterLessonsByMask(Arrays.stream(lessonIds).collect(Collectors.toSet()));
+        try {
+            SubjectDTO subj = this.client.fetchSubjectById(id);
+            Long[] lessonIds = subj.getLessons();
+            return filterLessonsByMask(Arrays.stream(lessonIds).collect(Collectors.toSet()));
+        } catch(WebClientResponseException ex) {
+            if(ex.getStatusCode().equals(HttpStatus.NOT_FOUND))
+                throw new NoSuchElementException("Element not found");
+            else
+                throw new BadRequestException("Bad request");
+        }
     }
 
     @Override
     public Iterable<SubjectDTO> getTeacherSubjects(Long id) {
+        this.client.specialtyOrTeacherExistsById(id, false);
         SubjectDTO[] subjs = getAllSubjects();
         return Arrays.stream(subjs)
                 .filter(subj -> Arrays.stream(subj.getTeachers()).anyMatch(id::equals))
@@ -54,6 +68,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public Iterable<SubjectDTO> getSpecialtySubjects(Long id) {
+        this.client.specialtyOrTeacherExistsById(id, true);
         SubjectDTO[] subjs = getAllSubjects();
         return Arrays.stream(subjs)
                 .filter(subj -> Arrays.stream(subj.getSpecialties()).anyMatch(id::equals))
