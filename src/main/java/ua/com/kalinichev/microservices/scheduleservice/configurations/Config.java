@@ -1,28 +1,24 @@
 package ua.com.kalinichev.microservices.scheduleservice.configurations;
 
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import com.netflix.appinfo.InstanceInfo;
+import com.netflix.discovery.EurekaClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Scope;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
 public class Config {
 
-    //private static final String CORE_SERVICE_URL = "http://localhost:3030/core/";
-    private static final String CORE_SERVICE_URL = "http://CORE-SERVICE/core/";
+    private static final String CORE_SERVICE_ID = "CORE-SERVICE";
+
+    @Autowired
+    private EurekaClient discoveryClient;
 
     @Bean
-    @LoadBalanced
-    public WebClient.Builder getWebClientBuilder() {
-        return WebClient.builder();
-    }
-
-    @Bean
-    @Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-    public WebClient getWebClient(WebClient.Builder builder) {
-        return builder.baseUrl(CORE_SERVICE_URL).build();
+    public WebClient getWebClient() {
+        InstanceInfo instance = discoveryClient.getNextServerFromEureka(CORE_SERVICE_ID, false);
+        return WebClient.builder().baseUrl(instance.getHomePageUrl() + "core/").build();
     }
 
 }

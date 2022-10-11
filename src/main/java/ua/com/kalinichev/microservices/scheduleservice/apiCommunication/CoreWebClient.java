@@ -1,5 +1,7 @@
 package ua.com.kalinichev.microservices.scheduleservice.apiCommunication;
 
+import com.netflix.appinfo.InstanceInfo;
+import com.netflix.discovery.DiscoveryClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
